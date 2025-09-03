@@ -18,7 +18,7 @@ def extract_text_from_pdf(path: str) -> str:
 
 def extract_text_from_md(path: str) -> str:
     with open(path, 'r', encoding='utf-8') as f:
-    return f.read()
+        return f.read()
 
 
 
