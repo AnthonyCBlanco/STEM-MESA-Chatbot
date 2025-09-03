@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+openai
+pinecone-client
+langchain
+python-multipart
+tqdm
+pypdf
+markdown
+python-dotenv
+requests
