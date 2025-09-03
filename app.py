@@ -1,48 +1,49 @@
-import os
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
-from openai import OpenAI
-from pinecone_client import get_index
-from prompt_templates import build_prompt
+import pickle
+import faiss
+import uvicorn
+from fastapi import FastAPI, Query
+from sentence_transformers import SentenceTransformer
+from transformers import pipeline
 
+INDEX_DIR = "faiss_index"
+
+# Load embedding model
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
+
+# Load FAISS index + metadata
+index = faiss.read_index(f"{INDEX_DIR}/index.faiss")
+with open(f"{INDEX_DIR}/metadata.pkl", "rb") as f:
+    texts, metadata = pickle.load(f)
+
+# Load a local chat model (free)
+generator = pipeline("text-generation", model="mistralai/Mistral-7B-Instruct-v0.2")
 
 app = FastAPI()
-app.mount('/static', StaticFiles(directory='static'), name='static')
 
+def search(query, k=3):
+    query_vec = embedder.encode([query])
+    distances, indices = index.search(query_vec, k)
+    results = [(texts[i], metadata[i]) for i in indices[0]]
+    return results
 
-openai_client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
-INDEX_NAME = os.environ.get('PINECONE_INDEX', 'stem-mesa')
-EMBED_MODEL = os.environ.get('EMBEDDING_MODEL', 'text-embedding-3-small')
-CHAT_MODEL = os.environ.get('CHAT_MODEL', 'gpt-4o-mini')
+@app.get("/chat")
+def chat(q: str = Query(..., description="Your question")):
+    results = search(q)
+    context = "\n".join([r[0] for r in results])
 
+    prompt = f"""
+    You are a helpful assistant for the SBVC STEM-MESA Center.
+    Answer the question based on the following documents:
 
-idx = get_index(INDEX_NAME)
+    {context}
 
+    Question: {q}
+    """
 
-@app.get('/', response_class=HTMLResponse)
-def home():
-    return FileResponse('static/index.html')
+    response = generator(prompt, max_new_tokens=200, do_sample=True)
+    answer = response[0]["generated_text"]
 
+    return {"answer": answer, "sources": [r[1]["source"] for r in results]}
 
-@app.post('/chat')
-async def chat(q: str = Form(...)):
-    # 1) embed query
-    q_emb = openai_client.embeddings.create(model=EMBED_MODEL, input=q).data[0].embedding
-    # 2) query pinecone
-    res = idx.query(vector=q_emb, top_k=4, include_metadata=True)
-    contexts = [
-        m['metadata'].get('text', '') if 'text' in m['metadata'] else m['metadata'].get('source', '')
-        for m in res['matches']
-    ]
-    # Note: we didn't store 'text' in ingest to save space; you can store a short snippet in metadata if desired.
-    # 3) build prompt and call chat
-    prompt = build_prompt(contexts, q)
-    completion = openai_client.chat.completions.create(
-        model=CHAT_MODEL,
-        messages=[{"role": "system", "content": prompt}],
-        max_tokens=512
-    )
-    answer = completion.choices[0].message.content
-    sources = [m['metadata'].get('source') for m in res['matches']]
-    return {"answer": answer, "sources": sources}
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -1,50 +1,62 @@
 import os
-import argparse
-import uuid
-from openai import OpenAI
-from tqdm import tqdm
-from utils import extract_text_from_md, extract_text_from_pdf, chunk_text
-from pinecone_client import get_index
+import glob
+import faiss
+import pickle
+from PyPDF2 import PdfReader
+from sentence_transformers import SentenceTransformer
 
-# lightweight ingestion script
+INDEX_DIR = "faiss_index"
 
-def embed_texts(texts, openai_client, model):
-    # batch embeddings
-    resp = openai_client.embeddings.create(model=model, input=texts)
-    return [r.embedding for r in resp.data]
+# Load embedding model (free, local)
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
-def main(source, index_name, model, chunk_size, overlap):
-    openai_client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
-    idx = get_index(index_name)
-    files = []
-    for root, _, names in os.walk(source):
-        for n in names:
-            if n.lower().endswith('.md') or n.lower().endswith('.pdf'):
-                files.append(os.path.join(root, n))
+def load_documents(source_dir="vault"):
+    docs = []
+    for filepath in glob.glob(os.path.join(source_dir, "**"), recursive=True):
+        if filepath.endswith(".pdf"):
+            reader = PdfReader(filepath)
+            text = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
+            docs.append((filepath, text))
+        elif filepath.endswith(".md") or filepath.endswith(".txt"):
+            with open(filepath, "r", encoding="utf-8") as f:
+                docs.append((filepath, f.read()))
+    return docs
 
-    for fpath in tqdm(files):
-        if fpath.endswith('.md'):
-            text = extract_text_from_md(fpath)
-        else:
-            text = extract_text_from_pdf(fpath)
-        chunks = chunk_text(text, chunk_size, overlap)
-        embeddings = embed_texts(chunks, openai_client, model)
-        # prepare upserts
-        vectors = []
-        for i, emb in enumerate(embeddings):
-            meta = {"source": fpath, "chunk_index": i}
-            vectors.append((str(uuid.uuid4()), emb, meta))
-        # upsert in batches
-        for i in range(0, len(vectors), 100):
-            batch = vectors[i:i+100]
-            idx.upsert(vectors=batch)
+def chunk_text(text, chunk_size=500, overlap=50):
+    words = text.split()
+    chunks = []
+    for i in range(0, len(words), chunk_size - overlap):
+        chunk = " ".join(words[i:i + chunk_size])
+        chunks.append(chunk)
+    return chunks
 
-if __name__ == '__main__':
-    p = argparse.ArgumentParser()
-    p.add_argument('--source', default='./vault')
-    p.add_argument('--index-name', default=os.environ.get('PINECONE_INDEX', 'stem-mesa'))
-    p.add_argument('--model', default=os.environ.get('EMBEDDING_MODEL', 'text-embedding-3-small'))
-    p.add_argument('--chunk-size', type=int, default=int(os.environ.get('CHUNK_SIZE', 800)))
-    p.add_argument('--overlap', type=int, default=int(os.environ.get('CHUNK_OVERLAP', 100)))
-    args = p.parse_args()
-    main(args.source, args.index_name, args.model, args.chunk_size, args.overlap)
+def ingest(source_dir="vault"):
+    print("Loading documents...")
+    docs = load_documents(source_dir)
+
+    texts = []
+    metadata = []
+
+    for filepath, content in docs:
+        chunks = chunk_text(content)
+        texts.extend(chunks)
+        metadata.extend([{"source": filepath}] * len(chunks))
+
+    print("Creating embeddings...")
+    embeddings = model.encode(texts)
+
+    # Create FAISS index
+    dim = embeddings.shape[1]
+    index = faiss.IndexFlatL2(dim)
+    index.add(embeddings)
+
+    os.makedirs(INDEX_DIR, exist_ok=True)
+    faiss.write_index(index, os.path.join(INDEX_DIR, "index.faiss"))
+
+    with open(os.path.join(INDEX_DIR, "metadata.pkl"), "wb") as f:
+        pickle.dump((texts, metadata), f)
+
+    print(f"Ingested {len(texts)} chunks from {len(docs)} documents.")
+
+if __name__ == "__main__":
+    ingest()
