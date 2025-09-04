@@ -1,34 +1,128 @@
-STEM-MESA RAG Chatbot (Upgraded)
-This chatbot provides conversational answers to student questions about STEM-MESA services at SBVC using a local, lightweight AI model.
+SBVC STEM-MESA RAG Chatbot
+A high-speed, low-cost RAG (Retrieval-Augmented Generation) chatbot designed to answer student questions about the STEM-MESA Center at San Bernardino Valley College.
 
-How it works
-Stores program flyers, schedules, and documents in the vault/ directory.
+This application leverages the blazing-fast Groq API with the Llama 3.1 8B model to provide instant, accurate, and context-aware answers based on a local knowledge base of documents.
 
-Uses langchain to intelligently split documents into context-aware chunks.
+✨ Features
+Blazing-Fast Responses: Powered by the Groq Llama 3.1 LLM, providing near-instant answers.
 
-Ingests document chunks into a FAISS vector index using sentence-transformers for semantic search.
+Accurate & Grounded: Uses a RAG pipeline to ensure answers are based only on the documents you provide, minimizing hallucinations.
 
-Uses the lightweight and powerful microsoft/phi-3-mini-4k-instruct generative model to provide conversational answers based on retrieved context.
+Source Citations: The chatbot cites the source documents used to generate an answer, providing transparency and trust.
 
-Exposes a simple API with FastAPI and includes a web interface.
+Extremely Low Cost: Built with a cost-effective tech stack that makes it affordable to run and scale.
 
-Usage
-Install Dependencies:
-Make sure you have all the required packages installed from requirements.txt.
+Simple & Modern UI: A clean, responsive web interface for easy interaction.
 
+Easy to Update: Simply add or change documents in the vault/ folder and re-run the ingestion script to update the chatbot's knowledge.
+
+🚀 Tech Stack
+The project uses a modern, efficient, and cost-effective set of tools:
+
+Component
+
+Technology
+
+Why?
+
+LLM API
+
+<img src="https://www.google.com/search?q=https://img.shields.io/badge/Groq-Llama_3.1--8B-F05A28%3Fstyle%3Dflat-square" alt="Groq Badge"/>
+
+Unmatched speed (~800 tokens/s) and extremely low cost (~$0.05 / 1M tokens).
+
+Backend
+
+<img src="https://www.google.com/search?q=https://img.shields.io/badge/FastAPI-009688%3Fstyle%3Dflat-square%26logo%3Dfastapi%26logoColor%3Dwhite" alt="FastAPI Badge"/>
+
+High-performance asynchronous Python framework for building the API.
+
+Embeddings
+
+<img src="https://www.google.com/search?q=https://img.shields.io/badge/Sentence--Transformers-3B82F6%3Fstyle%3Dflat-square" alt="Sentence-Transformers Badge"/>
+
+Free, high-quality, local model (all-MiniLM-L6-v2) to convert text to vectors without API cost.
+
+Vector Store
+
+<img src="https://www.google.com/search?q=https://img.shields.io/badge/FAISS-4D90FE%3Fstyle%3Dflat-square" alt="FAISS Badge"/>
+
+Fast, simple, and efficient local vector database for semantic search.
+
+Frontend
+
+<img src="https://www.google.com/search?q=https://img.shields.io/badge/HTML5-E34F26%3Fstyle%3Dflat-square%26logo%3Dhtml5%26logoColor%3Dwhite" alt="HTML5 Badge"/>
+
+A clean, single-page web interface for interacting with the chatbot.
+
+Styling
+
+<img src="https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS Badge"/>
+
+A utility-first CSS framework for rapid UI development.
+
+⚙️ Getting Started
+Follow these steps to set up and run the chatbot on your local machine.
+
+1. Prerequisites
+Python 3.8+
+
+A free Groq API Key
+
+2. Installation
+Clone the repository to your local machine:
+
+git clone [https://github.com/your-username/sbvc-mesa-chatbot.git](https://github.com/your-username/sbvc-mesa-chatbot.git)
+cd sbvc-mesa-chatbot
+
+Create a virtual environment and install the required packages:
+
+# Create and activate a virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
 
-Add Documents:
-Place your PDF, Markdown, or TXT files into the vault/ directory.
+3. Configuration
+Create a .env file in the root directory of the project and add your Groq API key:
 
-Ingest Documents:
-Run the ingestion script to process your documents and build the search index. You only need to do this when you add or change documents.
+GROQ_API_KEY="gsk_YourSecretGroqApiKeyGoesHere"
+
+4. Add Your Documents
+Place your knowledge base files (.pdf, .txt) into the vault/ directory. If this folder doesn't exist, create it.
+
+mkdir vault
+# Now add your files into the vault/ folder
+
+Examples: tutoring_schedule.pdf, workshop_info.txt, etc.
+
+5. Ingest the Data
+Run the ingestion script to process your documents. This will create a data/ directory containing the vector index and metadata.
+
+You must run this script every time you add, change, or remove documents in the vault/ directory.
 
 python ingest.py
 
-Start the Chatbot Server:
+6. Run the Application
+Start the FastAPI server using Uvicorn:
 
 uvicorn app:app --reload
 
-Chat with the Bot:
-Open your web browser and navigate to https://www.g
+🖥️ Usage
+Once the server is running, open your web browser and navigate to:
+
+http://127.0.0.1:8000
+
+You can now start asking questions in the chat interface!
+
+📂 Project Structure
+.
+├── app.py                # The main FastAPI application logic
+├── ingest.py             # Script to process and index documents
+├── index.html            # The single-page frontend
+├── requirements.txt      # Python dependencies
+├── README.md             # You are here!
+├── .env                  # Stores the API key (create this yourself)
+├── vault/                # Directory for your source documents (PDFs, TXT)
+└── data/                 # Stores the FAISS index and metadata (created by ingest.py)
