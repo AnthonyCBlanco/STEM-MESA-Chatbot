@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SBVC STEM-MESA Chatbot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chat-container::-webkit-scrollbar { width: 8px; }
+        .chat-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+        .chat-container::-webkit-scrollbar-track { background-color: #f1f5f9; }
+        .spinner {
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #ffffff;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl flex flex-col h-[90vh] md:h-[80vh]">
+
+        <div class="flex items-center mb-4 pb-4 border-b border-gray-200">
+            <div class="p-2 bg-blue-600 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.677A9.953 9.953 0 012.05 11.5c0-4.948 4.03-8.5 9-8.5s9 3.552 9 8.5z" />
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800 ml-4">STEM-MESA Chatbot</h1>
+        </div>
+
+        <div id="chat-box" class="flex-grow overflow-y-auto space-y-4 chat-container p-2 mb-4">
+            <div class="flex justify-start">
+                <div class="bg-gray-200 text-gray-800 rounded-xl p-3 max-w-[85%] shadow">
+                    <p>Hello! I'm the SBVC STEM-MESA assistant. How can I help you today?</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="error-box" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4" role="alert">
+            <strong class="font-bold">Error:</strong>
+            <span class="block sm:inline" id="error-message"></span>
+        </div>
+
+        <form id="chat-form" class="flex items-center space-x-4 pt-4 border-t border-gray-200">
+            <input 
+                type="text" 
+                id="user-input" 
+                placeholder="Ask about tutoring, workshops, etc..." 
+                class="flex-grow p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                required
+            >
+            <button 
+                type="submit" 
+                id="send-button"
+                class="bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-700 transition-colors duration-200 shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center w-14 h-12"
+            >
+                <svg id="send-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+                <div id="loading-spinner" class="spinner hidden"></div>
+            </button>
+        </form>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatForm = document.getElementById('chat-form');
+            const chatBox = document.getElementById('chat-box');
+            const userInput = document.getElementById('user-input');
+            const sendButton = document.getElementById('send-button');
+            const sendIcon = document.getElementById('send-icon');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const errorBox = document.getElementById('error-box');
+            const errorMessage = document.getElementById('error-message');
+
+            const toggleLoading = (isLoading) => {
+                sendButton.disabled = isLoading;
+                sendIcon.classList.toggle('hidden', isLoading);
+                loadingSpinner.classList.toggle('hidden', !isLoading);
+            };
+            
+            const showError = (message) => {
+                errorMessage.textContent = message;
+                errorBox.classList.remove('hidden');
+            };
+
+            const createMessage = (htmlContent, sender) => {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('flex', sender === 'user' ? 'justify-end' : 'justify-start');
+                
+                const messageBubble = document.createElement('div');
+                messageBubble.classList.add('rounded-xl', 'p-3', 'max-w-[85%]', 'shadow', 'break-words');
+                
+                if (sender === 'user') {
+                    messageBubble.classList.add('bg-blue-600', 'text-white');
+                } else {
+                    messageBubble.classList.add('bg-gray-200', 'text-gray-800');
+                }
+                
+                messageBubble.innerHTML = htmlContent;
+                messageDiv.appendChild(messageBubble);
+                chatBox.appendChild(messageDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            };
+
+            chatForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const question = userInput.value.trim();
+                if (!question) return;
+
+                createMessage(question, 'user');
+                userInput.value = '';
+                toggleLoading(true);
+                errorBox.classList.add('hidden'); // Hide previous errors
+
+                const typingIndicator = document.createElement('div');
+                typingIndicator.id = 'typing-indicator';
+                typingIndicator.classList.add('flex', 'justify-start');
+                typingIndicator.innerHTML = `
+                    <div class="bg-gray-200 text-gray-800 rounded-xl p-3 max-w-[85%] shadow">
+                        <p class="animate-pulse">Thinking...</p>
+                    </div>`;
+                chatBox.appendChild(typingIndicator);
+                chatBox.scrollTop = chatBox.scrollHeight;
+
+                try {
+                    const response = await fetch('/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ question }),
+                    });
+
+                    typingIndicator.remove();
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || `HTTP error! Status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    
+                    // --- IMPROVEMENT: Better Formatting ---
+                    // 1. Convert newlines in the answer to <br> tags for proper display.
+                    // 2. Display sources as clean, modern-looking tags.
+                    let botMessage = data.answer.replace(/\n/g, '<br>');
+                    if (data.sources && data.sources.length > 0) {
+                        const sourceList = data.sources.map(source => `
+                            <span class="inline-block bg-gray-300 text-gray-700 text-xs font-semibold mr-2 mt-2 px-2.5 py-1 rounded-full">
+                                ${source}
+                            </span>`).join('');
+                        botMessage += `<div class="mt-3 pt-2 border-t border-gray-400/50"><strong>Sources:</strong>${sourceList}</div>`;
+                    }
+
+                    createMessage(botMessage, 'bot');
+
+                } catch (error) {
+                    console.error('Chatbot request failed:', error);
+                    typingIndicator.remove();
+                    showError("Sorry, I couldn't connect to the chatbot. Please ensure the server is running and try again.");
+                } finally {
+                    toggleLoading(false);
+                    userInput.focus();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
