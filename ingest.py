@@ -8,7 +8,7 @@ from sentence_transformers import SentenceTransformer
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # Directory to save the index and metadata
-INDEX_DIR = "data" # Changed to a more generic name
+INDEX_DIR = "data" 
 
 # Load embedding model
 try:

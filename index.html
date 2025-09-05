@@ -151,9 +151,6 @@
 
                     const data = await response.json();
                     
-                    // --- IMPROVEMENT: Better Formatting ---
-                    // 1. Convert newlines in the answer to <br> tags for proper display.
-                    // 2. Display sources as clean, modern-looking tags.
                     let botMessage = data.answer.replace(/\n/g, '<br>');
                     if (data.sources && data.sources.length > 0) {
                         const sourceList = data.sources.map(source => `
