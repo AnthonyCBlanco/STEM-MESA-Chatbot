@@ -1,29 +1,3 @@
-SBVC STEM-MESA RAG Chatbot
-A high-speed, low-cost RAG (Retrieval-Augmented Generation) chatbot designed to answer student questions about the STEM-MESA Center at San Bernardino Valley College.
-
-This application leverages the blazing-fast Groq API with the Llama 3.1 8B model to provide instant, accurate, and context-aware answers based on a local knowledge base of documents.
-
-✨ Features
-Blazing-Fast Responses: Powered by the Groq Llama 3.1 LLM, providing near-instant answers.
-
-Accurate & Grounded: Uses a RAG pipeline to ensure answers are based only on the documents you provide, minimizing hallucinations.
-
-Source Citations: The chatbot cites the source documents used to generate an answer, providing transparency and trust.
-
-Extremely Low Cost: Built with a cost-effective tech stack that makes it affordable to run and scale.
-
-Simple & Modern UI: A clean, responsive web interface for easy interaction.
-
-Easy to Update: Simply add or change documents in the vault/ folder and re-run the ingestion script to update the chatbot's knowledge.
-
-🚀 Tech Stack
-The project uses a modern, efficient, and cost-effective set of tools:
-
-Component
-
-Technology
-
-Why?
 
 LLM API
 
